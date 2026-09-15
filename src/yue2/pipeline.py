@@ -295,12 +295,37 @@ class YuE2Pipeline:
             from .quantization import restore_ar
             restore_ar(self._model)
         model = self._load_model(for_nar=True)
+        # Apple MPS: the Metal allocator caches freed per-step blocks and never
+        # returns them, so driver-allocated memory ratchets upward over the NAR
+        # ODE (measured 10.5 -> 38.5 GB on a ~3-minute song, exhausting unified
+        # memory on a 36 GB machine). Flushing the cache once per ODE step keeps
+        # it flat (~9.2 GB); empty_cache() releases only free blocks, never
+        # live tensors, so results are unchanged. No-op on CPU/CUDA (close() and
+        # decode() below already mirror this with torch.cuda.empty_cache()).
+        mps_empty_cache = getattr(getattr(torch, "mps", None), "empty_cache", None) \
+            if self.device.type == "mps" else None
+        nar_driver_mb = [] if mps_empty_cache is not None and self.progress else None
         with self._status("Synthesizing audio", unit="steps") as status:
-            report = (lambda completed, total: status.update(completed, total=total)) if self.progress else None
+            progress = (lambda completed, total: status.update(completed, total=total)) if self.progress else None
+            if mps_empty_cache is None:
+                report = progress
+            else:
+                if self.progress:
+                    print("[YuE2] MPS NAR cache flush: enabled (one empty_cache per ODE step)", flush=True)
+
+                def report(completed, total, progress=progress, flush=mps_empty_cache):
+                    flush()
+                    if progress is not None:
+                        progress(completed, total)
+                    if nar_driver_mb is not None and (completed % 8 == 0 or completed == total):
+                        nar_driver_mb.append(torch.mps.driver_allocated_memory() // (1024 * 1024))
             result = synthesize(model, semantic.plan.prefix, semantic.tokens,
                                 semantic.plan.request.seed, steps=self.generation_config.ode_steps,
                                 context=self.generation_config.context, offload_ar=self.offload_ar,
                                 cancelled=cancelled, on_progress=report)
+            if nar_driver_mb:
+                print(f"[YuE2] MPS NAR driver memory: {min(nar_driver_mb)}-{max(nar_driver_mb)} MB "
+                      f"over {len(nar_driver_mb)} samples (per-step cache flush)", flush=True)
             return result.detach().float().cpu().numpy()
 
     def close(self):
@@ -324,13 +349,20 @@ class YuE2Pipeline:
                 self._model.to("cpu")
             if self.device.type == "cuda":
                 torch.cuda.empty_cache()
+            # Apple MPS: PyTorch's MPS conv1d backend rejects any conv whose
+            # output spatial length exceeds 65536 (misreported as
+            # "Output channels > 65536 not supported at the MPS device").
+            # The VAE decoder upsamples each latent tile x1920, so any
+            # practical tile exceeds that limit. Decode on CPU instead:
+            # decode_tiled already writes exact-core tiles to CPU memory.
+            vae_device = "cpu" if self.device.type == "mps" else self.device
             if vae is not None:
-                model = YuE2VAE.from_pretrained(vae, decoder_only=True, device=self.device)
+                model = YuE2VAE.from_pretrained(vae, decoder_only=True, device=vae_device)
             else:
                 if self._vae is None:
                     self._vae = YuE2VAE.from_pretrained(self.vae_dir, decoder_only=True, device="cpu",
                                                         local_files_only=True)
-                model = self._vae.to(self.device)
+                model = self._vae.to(vae_device)
         z = torch.as_tensor(latents, dtype=torch.float32)
         if z.ndim == 2 and z.shape[1] == 64:
             z = z.T.unsqueeze(0)
@@ -342,7 +374,7 @@ class YuE2Pipeline:
                 report = (lambda completed, total: status.update(completed, total=total)) if self.progress else None
                 with torch.inference_mode():
                     if full:
-                        audio = model.decode(z.to(self.device)).cpu()
+                        audio = model.decode(z.to(vae_device)).cpu()
                         status.update(1)
                     else:
                         audio = model.decode_tiled(z, core_frames=self.vae_core_frames, halo_frames=16,
