@@ -1,0 +1,4 @@
+{
+  "abc": {"max_tokens": 768},
+  "semantic": {"max_tokens": 300}
+}
