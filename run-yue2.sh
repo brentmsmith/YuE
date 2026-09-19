@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # YuE2 launcher for Apple Silicon (MPS) — Mac M3 Max setup.
 #
-# Wraps the locally installed `yue2` CLI (in ../venv, sibling of the git repo) and forces --device mps.
+# Wraps the installed `yue2` CLI and forces --device mps.
 # The VAE decode stage automatically runs on CPU via a small patch in
 # src/yue2/pipeline.py (PyTorch MPS conv1d fails when output length > 65536).
 # The same patch also flushes torch.mps.empty_cache() once per NAR ODE step
@@ -14,19 +14,33 @@
 #   ./run-yue2.sh doctor --verify-hashes          # environment check
 #   ./run-yue2.sh generate --help                 # all generation options
 #
+# Python env: .venv/bin/yue2 (created by ./setup-mac.sh or the install steps
+# in MAC_INSTALL_NOTES.md), else ../venv/bin/yue2 (sibling of the repo, the
+# layout used on this machine), else the yue2 CLI on PATH.
+# Models: ../models/hf (sibling, this machine's local HF cache) if present,
+# else the default HF cache (~/.cache/huggingface) — first run downloads.
+#
 # Any extra args are passed through to `yue2 generate` unless the first
 # argument is a subcommand (doctor, generate, ...), in which case this
 # script just forwards everything with --device mps added for generate.
 set -euo pipefail
 cd "$(dirname "$0")"
 
-# Runtime lives outside the git repo: ../venv (python env) and ../models/hf
-# (local HF cache with models--m-a-p--YuE2-3B and models--m-a-p--YuE2-Vae).
-export HF_HOME="${HF_HOME:-$(cd .. && pwd)/models/hf}"
+# Local model cache next to the repo (optional; fresh clones download to the
+# default HF cache unless HF_HOME is set).
+if [[ -z "${HF_HOME:-}" && -d ../models/hf ]]; then
+  export HF_HOME="$(cd .. && pwd)/models/hf"
+fi
 
-YUE="../venv/bin/yue2"
-if [[ ! -x "$YUE" ]]; then
-  echo "error: $YUE not found — see MAC_INSTALL_NOTES.md for install steps" >&2
+YUE=""
+for cand in .venv/bin/yue2 ../venv/bin/yue2; do
+  if [[ -x "$cand" ]]; then YUE="$cand"; break; fi
+done
+if [[ -z "$YUE" ]]; then
+  YUE="$(command -v yue2 || true)"
+fi
+if [[ -z "$YUE" ]]; then
+  echo "error: yue2 CLI not found — create .venv with ./setup-mac.sh (or see MAC_INSTALL_NOTES.md)" >&2
   exit 1
 fi
 

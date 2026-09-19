@@ -12,10 +12,27 @@ Apple M3 Max Mac with MPS acceleration. End-to-end music generation is
 | Repo | `<repo>` — main branch, commit `88da114`, YuE2 v0.1.6 |
 | Python env | `.venv` in the repo dir, built from `/opt/homebrew/bin/python3.12` |
 | Key packages | `torch 2.10.0` (MPS build), `transformers 4.57.6`, `yue2-infer` (installed via `pip install .`) |
-| Models | HF cache: `~/.cache/huggingface/hub/models--m-a-p--YuE2-3B` (6.76 GiB) and `models--m-a-p--YuE2-Vae` (0.49 GiB), sha256-verified |
+| Models | HF cache: `m-a-p/YuE2-3B` (6.76 GiB) and `m-a-p/YuE2-Vae` (0.49 GiB), sha256-verified |
 | Test output | `runs/mps-first-song/audio.flac` — 12.0 s, 48 kHz stereo (52.9 s) |
 | Validation output | `runs/final-mps-validation/audio.flac` — 29.5 s, 48 kHz stereo (99.9 s, fresh-env launcher run) |
 | Launcher | `./run-yue2.sh` (wraps `.venv/bin/yue2`, forces `--device mps`) |
+
+## Quick start (fresh clone)
+
+```bash
+git clone https://github.com/brentmsmith/YuE.git
+cd YuE && git checkout apple-silicon-mps   # or clone -b apple-silicon-mps
+./setup-mac.sh        # python3.12 -> .venv -> pip install . -> yue2 doctor (offline verify)
+./run-yue2.sh --request examples/song.json --id my-song --config short-test-config.json
+```
+
+`setup-mac.sh` requires a `python3.12` (Homebrew `brew install python@3.12`
+or pass one explicitly: `./setup-mac.sh --python /path/to/python3.12`).
+The first generation downloads both checkpoints into the HF cache (a few
+GiB; see below to relocate it). `run-yue2.sh` prefers `.venv/bin/yue2`
+(in-repo), then `../venv/bin/yue2` (sibling layout), then `yue2` on `PATH`;
+it uses `../models/hf` as `HF_HOME` when that sibling dir exists, else the
+default HF cache. Run outputs land in `runs/` (gitignored).
 
 ## Install steps (as performed)
 
@@ -34,7 +51,14 @@ Notes:
 - `examples/generate.py` hardcodes `device="cuda"` — use the `yue2` CLI instead
   (it supports `--device mps`).
 - Model download goes to the default HF cache (`~/.cache/huggingface/hub/`).
-  To relocate it, set `HF_HOME` (or `HF_HUB_CACHE`) before running.
+  To relocate it, set `HF_HOME` (or `HF_HUB_CACHE`) before running; the
+  launcher also picks up a `../models/hf` sibling dir automatically
+  (this machine keeps the cache there).
+- Run outputs (`runs/...`) and the historical validation runs referenced
+  below (`mps-first-song`, `final-mps-validation`, `long-mps-test`,
+  `mps-flush-verify`, `cpu-smoke-mpsnoop`) are gitignored; on this machine
+  they live outside the repo in a sibling `diagnostics/` dir — a fresh
+  clone regenerates them under `runs/`.
 - Verify the environment any time with:
   `./run-yue2.sh doctor --verify-hashes`
 
@@ -200,11 +224,11 @@ time / 107 s wall clock, with semantic cap 900 (the request ended naturally at
 738 tokens — `truncated: false` for both abc and semantic):
 
 ```bash
+printf '%s\n' '{"abc": {"max_tokens": 768}, "semantic": {"max_tokens": 900}}' > long-config.json
 env -i HOME="$HOME" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
   /usr/bin/time -l ./run-yue2.sh --request examples/song.json \
   --id final-mps-validation --output runs \
-  --config ../validation-scratch/long-config.json
-# long-config.json: {"abc": {"max_tokens": 768}, "semantic": {"max_tokens": 900}}
+  --config long-config.json
 ```
 
 - Devices: AR plan MPS (bf16, 34.5 tok/s), semantic MPS (bf16, 31.1 tok/s),
@@ -222,13 +246,13 @@ env -i HOME="$HOME" PATH=/usr/bin:/bin:/usr/sbin:/sbin \
 ### Long-song stress test (`runs/long-mps-test/`) — 2-minute generation
 
 A 2-minute full-song run through the public pipeline API
-(`validation-scratch/long_song_driver.py`, request
-`validation-scratch/long-song.json`, seed 831001, semantic cap 3000 tokens).
+(long-song driver + request in a local `diagnostics/validation-scratch/`
+dir outside the repo, seed 831001, semantic cap 3000 tokens).
 The driver wraps the public stage methods with pure-recording instrumentation
 plus `torch.mps.empty_cache()` after every NAR ODE step.
 
 **Why the empty-cache call is required on MPS.** A first attempt at this run
-(partial log: `validation-scratch/long-run-driver-crashed.log`) drove the
+(partial log: `diagnostics/validation-scratch/long-run-driver-crashed.log`, kept in a local diagnostics dir outside the repo) drove the
 machine into a hard memory crash and had to be killed: during NAR the MPS
 *driver-allocated* memory ratcheted 10.5 GB → 38.5 GB in ~80 s while MPS
 *live-allocated* stayed ~7.6-8.4 GB. The MPS allocator caches freed blocks of
@@ -259,7 +283,7 @@ it is numerically inert.
 - Audio: `audio.flac` 48 kHz stereo PCM_24, 5,759,936 samples, 120.000 s,
   peak 0.756, RMS 0.111, all finite, 0.0000 % at ±1.0 — no clipping, not
   silent. Semantic hit the 3000-token cap (`truncated: true`) by design.
-- Full driver report: `validation-scratch/long-run-report.json`.
+- Full driver report: `diagnostics/validation-scratch/long-run-report.json` (local diagnostics dir, outside the repo).
 
 **Long-song guidance for MPS (36 GB):** songs ≥ ~1 min must call
 `torch.mps.empty_cache()` per NAR ODE step (or equivalent) or the MPS
@@ -276,7 +300,7 @@ NAR blocks and never returns them: driver-allocated memory ratcheted
 10.5 → 38.5 GB over the NAR stage of a ~3-minute song (MPS *live*
 allocated stayed ~8.4 GB), exhausting unified memory on this 36 GB
 machine and crashing the system (measured during the long-song
-benchmark; see the crashed-run log in `../validation-scratch/`).
+benchmark; see the crashed-run log in `../diagnostics/validation-scratch/`, a local diagnostics dir outside the repo).
 
 **How it is enabled.** `src/yue2/pipeline.py` `synthesize()` now wraps the
 NAR `on_progress` callback (fires once per ODE step) with
@@ -300,7 +324,7 @@ generation limits are unchanged (semantic max 9000 upstream default; the
 3000-token cap was benchmark-driver-only).
 
 **Verified.** (1) NAR A/B on identical plan+semantic
-(`../validation-scratch/nar_flush_ab.py`): upstream no-flush vs patched
+(`../diagnostics/validation-scratch/nar_flush_ab.py`, local diagnostics dir): upstream no-flush vs patched
 per-step flush — bit-exact latents (`max|A-B| = 0.0`), and both equal the
 pre-patch baseline `latent.npy` bit-for-bit, so the flush cannot change
 seeds/tensors/results. (2) Launcher run `runs/mps-flush-verify/`
