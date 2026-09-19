@@ -1,0 +1,18 @@
+{
+  "_comment_how_to_use": "Copy this file, edit the fields, then run: ./make-song.sh my-song.json — see SONG_GUIDE.md for every field. Keys starting with '_' are comments and are ignored. style and lyrics are the only required fields.",
+  "_comment_variant_naming": "For variant testing, copy this request and change id/variant/seed only: song-001-a, song-001-b, song-001-c ... The catalog groups them by 'concept'.",
+  "id": "song-001-a",
+  "title": "replace with a short display title",
+  "style": "REPLACE: language, genre, instruments, vocal character, mood, tempo, N BPM — one line, comma-separated",
+  "lyrics": "[Verse]\nREPLACE with one lyric line per line\nREPLACE keep lines short and singable\n\n[Chorus]\nREPLACE the hook, the most memorable lines\n\n[Bridge]\nREPLACE optional contrast section",
+  "cot": "full",
+  "seed": 831001,
+  "target_seconds": null,
+  "genres": ["replace", "with", "genre tags"],
+  "bpm": null,
+  "key": null,
+  "vocal": "replace: e.g. female lead / male lead / wordless pads",
+  "concept": "song-001",
+  "variant": "a",
+  "notes": ""
+}

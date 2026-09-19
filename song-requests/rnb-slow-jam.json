@@ -1,0 +1,17 @@
+{
+  "_about": "Atmospheric 1980s/1990s-style R&B slow jam. Original lyrics/style, request-formatting example. ~60-75 s of lyrics structure with a 90 s target cap.",
+  "id": "rnb-slow-jam",
+  "title": "Velvet Midnight",
+  "style": "English, atmospheric late-1980s R&B slow jam, warm expressive female voice, close-mic intimate phrasing, electric piano chords, silky synth pads, deep rounded bass guitar, soft rimshot and snare groove, lush hall reverb, slow tempo, 68 BPM",
+  "lyrics": "[Verse]\nCandlelight across the ceiling\nSlow songs on the radio\nHold me like you mean it, darling\nLet the midnight take it slow\n\n[Chorus]\nKeep the record spinning, spinning\nEvery heartbeat in the groove\nUnderneath the velvet heaven\nThere is nothing left to prove\n\n[Bridge]\nOoh, the night is ours tonight\n\n[Chorus]\nKeep the record spinning, spinning\nEvery heartbeat in the groove",
+  "cot": "full",
+  "seed": 1101,
+  "target_seconds": 90,
+  "genres": ["r&b", "slow jam", "1980s", "atmospheric"],
+  "bpm": 68,
+  "key": null,
+  "vocal": "female lead",
+  "concept": "slow-jam-001",
+  "variant": "a",
+  "notes": "Slow-burn atmosphere; hook repeats at the end on purpose."
+}

@@ -1,0 +1,17 @@
+{
+  "_about": "Vaporwave instrumental-style request. YuE2 has no instrumental switch: it always sings the given lyrics. Practical approach used here: wordless vocal-pad lines (aah/ooh) that the style treats as texture, plus a 'wordless' vocal description. Verified by a 12 s smoke run; listen before relying on it. For guaranteed instrumentals, supply an ABC plan (cot=melody) with rests in the Vocal voice and the theme in the Ins voice (see SONG_GUIDE.md).",
+  "id": "vaporwave-instrumental",
+  "title": "Palm Court Mall (Night)",
+  "style": "English, vaporwave, dreamy slowed 1980s mall-pop textures, warm analog synthesizers, wordless airy female vocal pads and humming, pitched percussion loops, chorus-drenched electric piano, tape wobble, cavernous reverb, hazy nostalgic atmosphere, slow swaying tempo, 70 BPM",
+  "lyrics": "[Verse]\n(aah)\n(ooh)\n(aah)\n\n[Chorus]\n(mmm)\n(ooh)\n(aah)\n(ooh)\n\n[Bridge]\n(aah)\n(mmm)",
+  "cot": "full",
+  "seed": 2202,
+  "target_seconds": 60,
+  "genres": ["vaporwave", "instrumental-style", "downtempo"],
+  "bpm": 70,
+  "key": null,
+  "vocal": "wordless pads (no lead lyrics)",
+  "concept": "vaporwave-001",
+  "variant": "a",
+  "notes": "Wordless pads chosen deliberately: vaporwave uses smeared vocal texture; if a lead vocal appears anyway, tighten the style wording or switch to the ABC route."
+}

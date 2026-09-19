@@ -1,0 +1,17 @@
+{
+  "_about": "Classical-inspired piano ballad request example: delicate female vocal over solo grand piano with light strings, rubato phrasing.",
+  "id": "piano-nocturne",
+  "title": "Snow at the Window",
+  "style": "English, classical-inspired piano ballad, delicate airy female voice, solo grand piano with light sustained strings, rubato intimate phrasing, melancholy minor-key harmony, quiet chamber recording, natural dynamics, 72 BPM",
+  "lyrics": "[Verse]\nSnow against the window pane\nA small clock is ticking low\nEvery word we never spoken\nFalling soft as afterglow\n\n[Chorus]\nStay with the evening\nLet the piano say it slow\nEvery silence is a letter\nOnly winter has to know\n\n[Bridge]\n(aah)\n\n[Chorus]\nStay with the evening\nLet the piano say it slow",
+  "cot": "full",
+  "seed": 3303,
+  "target_seconds": 75,
+  "genres": ["piano ballad", "classical-inspired", "chamber"],
+  "bpm": 72,
+  "key": "minor (left to the model)",
+  "vocal": "female lead",
+  "concept": "piano-001",
+  "variant": "a",
+  "notes": "Key is not a request field in YuE2; it lives in the style wording and the planned ABC. Record the actual key here after listening."
+}

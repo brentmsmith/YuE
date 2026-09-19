@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # YuE2 launcher for Apple Silicon (MPS) — Mac M3 Max setup.
 #
-# Wraps the locally installed `yue2` CLI (in .venv) and forces --device mps.
+# Wraps the locally installed `yue2` CLI (in ../venv, sibling of the git repo) and forces --device mps.
 # The VAE decode stage automatically runs on CPU via a small patch in
 # src/yue2/pipeline.py (PyTorch MPS conv1d fails when output length > 65536).
 # The same patch also flushes torch.mps.empty_cache() once per NAR ODE step
@@ -20,7 +20,11 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
-YUE=".venv/bin/yue2"
+# Runtime lives outside the git repo: ../venv (python env) and ../models/hf
+# (local HF cache with models--m-a-p--YuE2-3B and models--m-a-p--YuE2-Vae).
+export HF_HOME="${HF_HOME:-$(cd .. && pwd)/models/hf}"
+
+YUE="../venv/bin/yue2"
 if [[ ! -x "$YUE" ]]; then
   echo "error: $YUE not found — see MAC_INSTALL_NOTES.md for install steps" >&2
   exit 1
